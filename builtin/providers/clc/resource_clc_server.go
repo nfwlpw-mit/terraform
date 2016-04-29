@@ -44,10 +44,6 @@ func resourceCLCServer() *schema.Resource {
 				Type:     schema.TypeInt,
 				Required: true,
 			},
-			"password": &schema.Schema{
-				Type:     schema.TypeString,
-				Required: true,
-			},
 			// optional
 			"description": &schema.Schema{
 				Type:     schema.TypeString,
@@ -88,6 +84,12 @@ func resourceCLCServer() *schema.Resource {
 			},
 
 			// sorta computed
+			"password": &schema.Schema{
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+				Default:  nil,
+			},
 			"private_ip_address": &schema.Schema{
 				Type:     schema.TypeString,
 				Optional: true,
@@ -231,8 +233,8 @@ func resourceCLCServerUpdate(d *schema.ResourceData, meta interface{}) error {
 	// updates are queue processed
 	if d.HasChange("password") {
 		d.SetPartial("password")
-		o, _ := d.GetChange("password")
-		old := o.(string)
+		creds, _ := client.Server.GetCredentials(id)
+		old := creds.Password
 		pass := d.Get("password").(string)
 		updates = append(updates, server.UpdateCredentials(old, pass))
 	}
