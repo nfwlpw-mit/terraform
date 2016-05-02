@@ -1,0 +1,10 @@
+language: ruby
+bundler_args: ''
+
+rvm:
+  - ruby-2.2.1  # recommended release
+  - ruby-2.2
+
+env:
+  - PUPPET_VERSION=3.8.4 # ubuntu image
+  - PUPPET_VERSION=3.8.1 # centos image

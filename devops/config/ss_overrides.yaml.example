@@ -1,0 +1,170 @@
+---
+
+## 
+## Required Settings
+##
+
+#ss_dev_initials:         KC
+#ss_aws_keypair:          "Kevin Macbook"
+#ss_aws_private_key:      "~/.ssh/id_rsa"
+
+##
+## Only required if not using VirtualBox
+##
+
+#ss_consul_server:         "Build the consul server and then put the internal ip here."
+
+##
+## Any config found in common.yaml can be overridden in this file.
+## To do so, copy this file to ss_overrides.yaml in the same directory.
+## Any config specific to this file is documented below.
+##
+
+##
+## ss_backend::git_revision: The version of ss_backend to include in the build.
+##
+## This can be set to the branch, tag, or sha from the github repo, or to the keyword
+## 'local' to build against a local copy of code. If set to 'local' you have to ensure
+## 'ss_backend::localpath' is also set.
+## Examples:
+#ss_backend::git_revision: <branch/tag/sha>
+#ss_backend::git_revision: local
+
+
+##
+## ss_backend::localpath: The path to the root of the ss_api repo.
+##                    Only if 'ss_backend::git_revision' is set to 'local'
+##
+## The path can be relative to the root of the devops repo or absolute.
+## Examples:
+# ss_backend::localpath: <path to repo root> 
+
+##
+## ss_media::git_revision: The version of ss_media to include in the build.
+##
+## This can be set to the branch, tag, or sha from the github repo, or to the keyword
+## 'local' to build against a local copy of code. If set to 'local' you have to ensure
+## 'ss_media::localpath' is also set.
+## Examples:
+#ss_media::git_revision: <branch/tag/sha>
+#ss_media::git_revision: local
+
+
+##
+## ss_media::localpath: The path to the root of the ss_api repo.
+##                    Only if 'ss_media::git_revision' is set to 'local'
+##
+## The path can be relative to the root of the devops repo or absolute.
+## Examples:
+# ss_media::localpath: <path to repo root> 
+
+
+##
+## ss_api::git_revision: The version of ss_api to include in the build.
+##
+## This can be set to the branch, tag, or sha from the github repo, or to the keyword
+## 'local' to build against a local copy of code. If set to 'local' you have to ensure
+## 'ss_api::localpath' is also set.
+## Examples:
+# ss_api::git_revision: <branch/tag/sha>
+# ss_api::git_revision: local
+# ss_api::new_relic_license: "<license>"
+# ss_api::new_relic_name: "<name to show in NR console>"
+# ss_api::loggly_token: '<the-token-from-loggly>'
+# ss_api::loggly_subdomain: '<your-subdomain>'
+# ss_api::loggly_base_tag: '<your-testing-tag>'
+
+
+##
+## ss_api::localpath: The path to the root of the ss_api repo.
+##                    Only if 'ss_api::git_revision' is set to 'local'
+##
+## The path can be relative to the root of the devops repo or absolute.
+## Examples:
+# ss_api::localpath: <path to repo root> 
+
+
+##
+## ss_webapp::git_revision: The version of ss_webapp to include in the build.
+##
+## This can be set to the branch, tag, or sha from the github repo, or to the keyword
+## 'local' to build against a local copy of code. If set to 'local' you have to ensure
+## 'ss_webapp::localpath' is also set.
+## Examples:
+# ss_webapp::git_revision: <branch/tag/sha>
+# ss_webapp::git_revision: local
+
+
+##
+## ss_webapp::localpath: The path to the root of the ss_webapp repo.
+##                       Only if 'ss_webapp::git_revision' is set to 'local'
+##
+## The path can be relative to the root of the devops repo or absolute.
+## Examples:
+# ss_webapp::localpath: <path to repo root> 
+
+##
+## ss_drupal::git_revision: The version of ss_drupal to include in the build.
+##
+## This can be set to the branch, tag, or sha from the github repo, or to the keyword
+## 'local' to build against a local copy of code. If set to 'local' you have to ensure
+## 'ss_drupal::localpath' is also set.
+## Examples:
+# ss_drupal::git_revision: <branch/tag/sha>
+# ss_drupal::git_revision: local
+
+
+##
+## ss_drupal::localpath: The path to the root of the ss_drupal repo.
+##                       Only if 'ss_drupal::git_revision' is set to 'local'
+##
+## The path can be relative to the root of the devops repo or absolute.
+## Examples:
+# ss_drupal::localpath: <path to repo root> 
+
+
+##
+## ss_asterisk::git_revision: The version of ss_asterisk to include in the build.
+##
+## This can be set to the branch, tag, or sha from the github repo, or to the keyword
+## 'local' to build against a local copy of code. If set to 'local' you have to ensure
+## 'ss_asterisk::localpath' is also set.
+## Examples:
+# ss_asterisk::git_revision: <branch/tag/sha>
+# ss_asterisk::git_revision: local
+
+
+##
+## ss_asterisk::localpath: The path to the root of the ss_asterisk repo.
+##                       Only if 'ss_asterisk::git_revision' is set to 'local'
+##
+## The path can be relative to the root of the devops repo or absolute.
+## Examples:
+# ss_asterisk::localpath: <path to repo root> 
+
+# Used for alert emails
+# ss_alert_email: kj@simplisafe.com
+# Used for call logging and voicemail logging
+# ss_asterisk::ss_voicemail_logging: https://192.168.33.67/admin/phone/voicemail-log
+# ss_asterisk::ss_call_logging: https://192.168.33.67/admin/phone/call-log
+
+
+
+##
+## ss_drupal::fqdn: The FQDN to use for the drupal site.
+##
+## This will be the fqdn used to generate the ssl cert for drupal.
+## It will also be used as part of the name based virtual host.
+# ss_drupal::fqdn: localdev.hq.simplisafe.com
+
+##
+## ss_devops::offline_mode: Attempt to operate in offline mode
+##
+## This will disable any pre-run checks that depend on the internet.
+## This does not necessarily allow you to do a fresh build without internet access.
+## Running vagrant up should work so long as the box has already been provisioned.
+## All other commands, except for provision, should work as well.
+## Default is false.
+##
+## Example:
+# ss_devops::offline_mode: true

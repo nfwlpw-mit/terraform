@@ -1,0 +1,18 @@
+# A sample Gemfile
+source 'https://rubygems.org'
+
+if ENV.key?('PUPPET_VERSION')
+  puppetversion = "= #{ENV['PUPPET_VERSION']}"
+else
+  puppetversion = ['>= 2.7']
+end
+
+gem 'consul-client'
+gem 'english'
+gem 'rake'
+gem 'rake-terraform'
+gem 'librarian-puppet'
+gem 'puppet-lint'
+gem 'puppet', puppetversion
+gem 'vagrant-wrapper'
+gem 'rubyzip'

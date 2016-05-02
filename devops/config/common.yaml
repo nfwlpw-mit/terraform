@@ -1,0 +1,35 @@
+---
+
+ss_consul_server:                   192.168.33.10
+
+ss_alert_email:                     root
+
+ss_api::fqdn:                       api.localdev
+ss_api::git_revision:               master
+ss_api::uid:                        601
+
+ss_drupal::fqdn:                    drupal.localdev
+ss_drupal::git_revision:            master
+ss_drupal::uid:                     602
+
+ss_webapp::fqdn:                    webapp.localdev
+ss_webapp::git_revision:            master
+ss_webapp::uid:                     603
+
+ss_sarlacc::git_revision:           develop
+ss_sarlacc::uid:                    607
+
+ss_asterisk::git_revision:          master_2
+ss_asterisk::uid:                   604
+ss_asterisk::ss_voicemail_logging:  https://192.168.33.67/admin/phone/voicemail-log
+ss_asterisk::ss_call_logging:       https://192.168.33.67/admin/phone/call-log
+
+ss_media::git_revision:             master
+ss_media::uid:                      605
+ss_media::fqdn:                     media.localdev
+
+ss_backend::git_revision:           master
+ss_backend::uid:                    606
+
+#ss_sarlacc::aws_access_key_id:       
+#ss_sarlacc::aws_secret_access_key:   

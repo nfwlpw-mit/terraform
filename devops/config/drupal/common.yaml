@@ -1,0 +1,5 @@
+php::fpm::pools:
+  :ss_drupal:
+    :user:   'ss_drupal'
+    :listen: '127.0.0.1:9001'
+

@@ -1,0 +1,14 @@
+{
+  "name": "simplisafe-ss_redis",
+  "version": "0.1.0",
+  "author": "simplisafe",
+  "summary": null,
+  "license": "Private",
+  "source": "",
+  "project_page": null,
+  "issues_url": null,
+  "dependencies": [
+    {"name":"simplisafe-ss_common"}
+  ]
+}
+

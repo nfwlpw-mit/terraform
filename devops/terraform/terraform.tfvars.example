@@ -1,0 +1,47 @@
+# This example file attempts to document the available options.
+# Where this file is incomplete or out of date, pull requests are gladly appreciated.
+
+# aws keys for api access
+aws_access_key           = 
+aws_secret_key           = 
+
+# default aws region for the majority of your infrastructure
+aws_region               = 
+
+# ssh key name to use in AWS
+aws_key_name             = 
+# path to the private ssh key on disk
+key_file                 =
+
+vpcid                    = 
+availability_zones       = 
+public_subnets           = 
+
+# This should match ss_dev_initials from ss_overrides.conf
+unique_env_name          = 
+
+# Flag whether or not to build mysql.  Set to 0 to not build.
+mysql_count              =
+
+
+# Flag whether or not to build drupal.  Set to 0 to not build.
+drupal_count             =
+
+# AWS instance size to use to build mongo
+mongo_instance_size      =
+
+# This should match the FQDN as defined in ss_overrides.conf
+api_fqdn                 = 
+
+# Flag whether or not to build the media-backend elb.  Should be set to 0 if no media-backend servers.
+media-backend_elb_count  = 
+media-backend_count      = 
+# This should match the FQDN as defined in ss_overrides.conf
+media-backend_fqdn       = 
+
+#Since the asterisk servers need to support being built in other AWS regions, the credentials & vpc are defined separately here.
+aws_asterisk_access_key  = 
+aws_asterisk_secret_key  = 
+primary_asterisk_vpcid   = 
+secondary_asterisk_vpcid = 
+asterisk_instance_size   =

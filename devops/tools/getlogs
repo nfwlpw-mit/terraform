@@ -1,0 +1,156 @@
+#!/usr/bin/python
+
+import sys
+import os
+import os.path
+import subprocess
+import json
+
+bucketUrl = "s3://ss-camera-diags"
+escapedUrl = bucketUrl.replace("/", "\/")
+
+def usage():
+    sys.stderr.write("Usage: getlogs {-u [<prefix>] | {-l | -c | -gl | -gc} <uuid> [start [end]]}\n")
+    sys.stderr.write("where object s3://ss-camera-diags/<prefix> must exist.\n")
+    sys.stderr.write("\nOptions:\n")
+    sys.stderr.write("   -u: list uuids matching prefix.\n")
+    sys.stderr.write("       If no prefix is included, lists all uuids.\n")
+    sys.stderr.write("       If prefix contains full uuid, lists all files for uuid.\n")
+    sys.stderr.write("   -l: list logs for uuid.\n")
+    sys.stderr.write("   -c: list coredumps for uuid.\n")
+    sys.stderr.write("   -gl: get logs for uuid.\n")
+    sys.stderr.write("   -gc: get coredumps for uuid.\n")
+    sys.stderr.write("\n")
+    sys.stderr.write("Files are downloaded to directory tree matching S3 object path in current directory.\n")
+    sys.stderr.write("Files that already exist are not downloaded again.\n")
+    sys.stderr.write("\n")
+    sys.stderr.write('Timestamp specification: default is to include all files for UUID.\n')
+    sys.stderr.write('Start and end limit range of timestamps to include.\n')
+    sys.stderr.write('If only start is provided, only file with that timestamp will be included.\n')
+    sys.stderr.write('If either start or end is "-", the range is open-ended on that side.\n')
+    sys.stderr.write('\n')
+    sys.stderr.write('Example:\n')
+    sys.stderr.write('   getlogs -u                                                             : List all UUIDs with available files.\n')
+    sys.stderr.write('   getlogs -u 515                                                         : List all UUIDs with prefix "515".\n')
+    sys.stderr.write('   getlogs -u 515afe03-fee1-dead-0000-deadbeef0001                        : List all files for UUID.\n')
+    sys.stderr.write('   getlogs -l 515afe03-fee1-dead-0000-deadbeef0001                        : List all logs for UUID.\n')
+    sys.stderr.write('   getlogs -l 515afe03-fee1-dead-0000-deadbeef0001 1456955406             : List log file for UUID with timestamp 1456955406.\n')
+    sys.stderr.write('   getlogs -gl 515afe03-fee1-dead-0000-deadbeef0001 1456955406 -          : Get logs for UUID for 1456955406 and later.\n')
+    sys.stderr.write('   getlogs -gl 515afe03-fee1-dead-0000-deadbeef0001 - 1456955406          : Get logs for UUID for 1456955406 and earlier.\n')
+    sys.stderr.write('   getlogs -gl 515afe03-fee1-dead-0000-deadbeef0001 1456955406 1456955600 : Get logs for 1456955-1456955600, inclusive.\n')
+    sys.stderr.write('\n')
+    sys.exit(1)
+
+def list(type, prefix, start, end):
+    print "Found %s:" % type
+    cmd = 's3cmd ls %s/%s | sed "s/%s\///" | sed "s/                       DIR   //" | sed "s/^/   /" | sed "s/\/\([0-9]*$\)/ \\1/" | sort' % (bucketUrl, prefix, escapedUrl)
+    if (start):
+        if (end):
+            cmd += '| grep -A 99999 %s' % start
+            cmd += '| grep -B 99999 %s' % end
+        else:
+            cmd += '| grep %s' % start
+    p = subprocess.Popen(cmd, shell=True)
+    p.wait()
+
+def listObjects(prefix, start, end):
+    cmd = 's3cmd ls %s/%s | sed "s/%s\///" | cut -c 30- | sort' % (bucketUrl, prefix, escapedUrl)
+    if (start):
+        if (end):
+            cmd += '| grep -A 99999 %s' % start
+            cmd += '| grep -B 99999 %s' % end
+        else:
+            cmd += '| grep %s' % start
+    return subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
+
+def getObjects(type, prefix, start, end):
+    print "Getting %s." % type
+    objects = listObjects(prefix, start, end)
+    for obj in objects:
+        obj = obj.strip('\n')
+        elements = obj.split("/")
+        dirname = "/".join(elements[0:-1])
+
+        try:
+            os.mkdirs(dirname)
+        except:
+            pass
+
+        if os.path.isfile(obj):
+            print "%s aready downloaded." % obj
+        else:
+            # For some reason, "s3cmd get" lists file twice, hence the uniq below.
+            cmd = "s3cmd get %s/%s %s | uniq" % (bucketUrl, obj, obj)
+            subprocess.Popen(cmd, shell=True).wait()
+            
+    
+##########################
+if __name__ == "__main__":
+    nextarg = 1
+    if len(sys.argv) < 2 or sys.argv[1] == "-h":
+        usage()
+    elif sys.argv[1] == "-u":
+        if len(sys.argv) == 2:
+            # List all UUIDs.
+            list("UUIDs", "", 0 , 0)
+        else:
+            prefix = sys.argv[2]
+            if len(prefix) < 36:
+                # List all UUIDs matching prefix.
+                list("UUIDs", prefix, 0, 0)
+            else:
+                # List all entries for UUID, removing any excess stuff.
+                if len(prefix) > 36:
+                    prefix = prefix[0:36]
+                list("logs", prefix + '/tmp/transmiting.log/', 0, 0)
+                list("coredumps", prefix + '/var/lib/systemd/', 0, 0)
+    elif sys.argv[1] == "-l" or sys.argv[1] == "-c":
+        if len(sys.argv) == 2:
+            usage()
+        else:
+            uuid = sys.argv[2]
+            start = 0
+            end = 0
+            if len(sys.argv) > 3:
+                start = sys.argv[3]
+            if len(sys.argv) > 4:
+                end = sys.argv[4]
+            if len(uuid) < 36:
+                usage()
+            else:
+                # List all file of specified type for UUID.
+                if len(uuid) > 36:
+                    # Remove any excess stuff.
+                    uuid = uuid[0:36]
+                if sys.argv[1] == "-l":
+                    # List logs for UUID.
+                    list("logs", uuid + '/tmp/transmiting.log/', start, end)
+                else:
+                    # List coredumps for UUID.
+                    list("coredumps", uuid + '/var/lib/systemd/', start, end)
+    elif sys.argv[1] == "-gl" or sys.argv[1] == "-gc":
+        if len(sys.argv) == 2:
+            usage()
+        else:
+            uuid = sys.argv[2]
+            start = 0
+            end = 0
+            if len(sys.argv) > 3:
+                start = sys.argv[3]
+            if len(sys.argv) > 4:
+                end = sys.argv[4]
+            if len(uuid) < 36:
+                usage()
+            else:
+                # List all file of specified type for UUID.
+                if len(uuid) > 36:
+                    # Remove any excess stuff.
+                    uuid = uuid[0:36]
+                if sys.argv[1] == "-gl":
+                    # List logs for UUID.
+                    getObjects("logs", uuid + '/tmp/transmiting.log/', start, end)
+                else:
+                    # List coredumps for UUID.
+                    getObjects("coredumps", uuid + '/var/lib/systemd/', start, end)
+    else:
+        usage()

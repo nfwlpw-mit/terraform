@@ -1,0 +1,11 @@
+---
+:backends: yaml
+:yaml:
+  :datadir: config
+:hierarchy:
+  - "ss_creds"
+  - "%{ss_class}/ss_overrides"
+  - "ss_overrides"
+  - "%{ss_class}/common"
+  - "common"
+:logger: noop

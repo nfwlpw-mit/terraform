@@ -1,0 +1,316 @@
+#!/usr/bin/ruby
+#
+# Run several types of tests againsts a puppet repo (module or master
+# config).
+#
+# author: Thomas Van Doren
+
+require 'rake'
+require 'bundler'
+Bundler.setup
+
+require 'librarian/puppet'
+require 'vagrant-wrapper'
+require 'rake_terraform'
+require 'english'
+
+# default
+desc 'Show available tasks and exit.'
+task :default => ['help']
+
+# help
+desc 'Show available tasks and exit.'
+task :help do
+  system('rake -T')
+end
+
+# clean, clobber
+require 'rake/clean'
+#CLEAN.include('')
+CLOBBER.include('puppet/modules')
+CLOBBER.include('puppet/.tmp')
+
+# Load setup tasks
+load 'libs/setup.rb'
+
+# Load deploy tasks
+load 'libs/deploy.rb'
+
+desc 'Check and lint code'
+task :check => ['check:syntax', 'check:lint']
+
+namespace :check do
+  # syntax
+  desc 'Validate syntax for all manifests.'
+  task :syntax do
+    successes = []
+    failures = []
+    Dir.glob('puppet/**/*.pp').each do |puppet_file|
+      case puppet_file
+        when /^puppet\/modules\//
+          next
+      end
+      puts "Checking syntax for #{puppet_file}"
+
+      # Run syntax checker in subprocess.
+      system("puppet parser validate #{puppet_file}")
+
+      # Keep track of the results.
+      if $?.success?
+        successes << puppet_file
+      else
+        failures << puppet_file
+      end
+    end
+
+    # Print the results.
+    total_manifests = successes.count + failures.count
+    puts "#{total_manifests} files total."
+    puts "#{successes.count} files succeeded."
+    puts "#{failures.count} files failed:"
+    puts
+    failures.each do |filename|
+      puts filename
+    end
+
+    # Fail the task if any files failed syntax check.
+    if failures.count > 0
+      fail("#{failures.count} filed failed syntax check.")
+    end
+  end
+
+  # lint
+  require 'puppet-lint/tasks/puppet-lint'
+  Rake::Task[:lint].clear
+  PuppetLint::RakeTask.new :lint do |config|
+    # Pattern of files to check, defaults to `**/*.pp`
+    config.pattern = 'puppet/my_modules/**/*.pp'
+    config.disable_checks = ['autoloader_layout']
+  end
+end
+
+task :build do
+  puts 'This command has been deprecated.'
+  puts 'You should run rake build_dev or rake build_prd'
+end
+
+desc 'Build dev systems with latest puppet modules.'
+task :build_dev => [ 'build:puppet_latest' ]
+
+desc 'Build prd systems using exactly what comes from the lock file.'
+task :build_prd => [ 'build:puppet_lock' ]
+
+namespace :build do
+  desc 'Install puppet modules from lock file.'
+  task :puppet_lock do
+    require 'librarian/puppet/environment'
+    require 'librarian/puppet/action/install'
+    require 'librarian/action'
+
+    environment = Librarian::Puppet::Environment.new({
+      :project_path => "#{File.dirname(__FILE__)}/"
+    })
+
+    puts 'Checking Puppetfile and Puppetfile.lock'
+    Librarian::Action::Ensure.new(environment).run
+    Librarian::Action::Resolve.new(environment).run
+
+    puts 'Installing Modules from Puppetfile.lock.'
+    Librarian::Puppet::Action::Install.new(environment).run
+  end
+
+  desc 'Install latest puppet modules.'
+  task :puppet_latest do
+    require 'librarian/puppet/environment'
+    require 'librarian/puppet/action/install'
+    require 'librarian/action/update'
+    require 'librarian/action'
+
+    environment = Librarian::Puppet::Environment.new({
+      :project_path => "#{File.dirname(__FILE__)}/"
+    })
+
+    puts 'Checking Puppetfile.lock matched Puppetfile'
+    Librarian::Action::Ensure.new(environment).run
+    Librarian::Action::Resolve.new(environment, { :force => true }).run
+
+    puts 'Installing Latest Modules.'
+    Librarian::Puppet::Action::Install.new(environment).run
+  end
+
+  desc 'Bring up support infrastructure before full build.'
+  task :bootstrap do
+    puts VagrantWrapper.new.get_output "up consul"
+  end
+end
+
+#vagrant ssh consul -c 'facter ec2_public_hostname'
+
+desc 'Get the status of your dev environment.'
+task :status do
+  puts VagrantWrapper.new.get_output "status"
+end
+
+
+
+
+
+
+
+
+
+
+
+
+def get_instance_ip(name)
+  return VagrantWrapper.new.get_output("ssh #{name} -c 'facter ec2_public_ipv4' -- -q").strip
+end
+
+
+desc 'Set up lb entries in consul.'
+task :lbsetup_vagrant do
+  require 'consul/client'
+  require 'json'
+  require 'hiera'
+
+  hiera     = Hiera.new(config: 'config/hiera.yaml')
+
+  puts "Finding Consul's IP address"
+
+  consul_ip = get_instance_ip('consul')
+  consul_dc = hiera.lookup('ss_dev_initials', '', '')
+
+  if consul_ip == '' or consul_dc == ''
+    puts "consul data can't be blank"
+    puts "consul_ip: #{consul_ip}"
+    puts "consul_dc: #{consul_dc}"
+    exit 1
+  end
+
+  client = Consul::Client.v1.http :host => consul_ip, :port => '8500'
+
+  lbservice_list = ['leia_socketio', 'leia_protobuf', 'leia_events_listener', 'api-internal-http-server']
+
+  lbservice_list.each do |service|
+    lbservice      = client.get("/catalog/service/#{service}")[0]
+
+    lbservice_ip   = lbservice['Address']
+    lbservice_port = lbservice['ServicePort']
+
+    service_data = {
+      'Datacenter': "#{consul_dc.downcase}-dev",
+      'Node': 'vagrant',
+      'Address': '127.0.0.1',
+      'Service': {
+        'Address': lbservice_ip,
+        'Service': "lb_#{service}",
+        'Port': lbservice_port
+      }
+    }
+
+    puts service_data.to_json
+
+    client.put("/catalog/register",service_data)
+  end
+end
+
+desc 'Set up lb entries in consul.'
+task :lbsetup_terraform do
+  require 'consul/client'
+  require 'json'
+  require 'hiera'
+
+  hiera     = Hiera.new(config: 'config/hiera.yaml')
+
+  puts "Finding Consul's IP address"
+  consul_ip = `cd terraform; terraform output consul_internal_ip`.strip
+  consul_dc = hiera.lookup('ss_dev_initials', '', '')
+
+  if consul_ip == '' or consul_dc == ''
+    puts "consul data can't be blank"
+    puts "consul_ip: #{consul_ip}"
+    puts "consul_dc: #{consul_dc}"
+    exit 1
+  end
+
+  client = Consul::Client.v1.http :host => consul_ip, :port => '8500'
+
+  lbservice_list = {
+    'leia_socketio' => 'leia_lb',
+    'leia_protobuf' => 'leia_lb',
+    'leia_events_listener' => 'leia_lb',
+    'api-internal-http-server' => 'yoda_lb'
+  }
+
+  lbservice_list.each do |service, tfoutput|
+    lbservice      = client.get("/catalog/service/#{service}")[0]
+
+    lbservice_ip   = `cd terraform; terraform output #{tfoutput}`.strip
+    #lbservice_ip   = lbservice['Address']
+    lbservice_port = lbservice['ServicePort']
+
+    #service_data = {
+    #  'Datacenter': "#{consul_dc}-dev",
+    #  'Node': 'vagrant',
+    #  'Address': '127.0.0.1'
+    #  'Service': {
+    #    'Address': lbservice_ip,
+    #    'Service': "lb_#{service}",
+    #    'Port': lbservice_port
+    #  }
+    #}
+
+    #client.put("/catalog/register",service_data)
+  end
+end
+
+desc 'Set up alarm servers in consul.'
+task :set_alarms do
+  require 'consul/client'
+  require 'json'
+  require 'hiera'
+
+  hiera     = Hiera.new(config: 'config/hiera.yaml')
+
+  puts "Finding Consul's IP address"
+
+  consul_ip = get_instance_ip('consul')
+  consul_dc = hiera.lookup('ss_dev_initials', '', '')
+
+  if consul_ip == '' or consul_dc == ''
+    puts "consul data can't be blank"
+    puts "consul_ip: #{consul_ip}"
+    puts "consul_dc: #{consul_dc}"
+    exit 1
+  end
+
+  client = Consul::Client.v1.http :host => consul_ip, :port => '8500'
+
+  hiera.lookup('alarm_servers', '', '').each do |alarm_server|
+    puts "Hello #{alarm_server}"
+
+    service_data = {
+      'Datacenter': "#{consul_dc.downcase}-dev",
+      'Node': alarm_server,
+      'Address': alarm_server,
+      'Service': {
+        'Service': "alarm_server_mysql",
+        'Port': 3306
+      }
+    }
+
+    client.put("/catalog/register",service_data)
+
+    service_data = {
+      'Datacenter': "#{consul_dc.downcase}-dev",
+      'Node': alarm_server,
+      'Address': alarm_server,
+      'Service': {
+        'Service': "alarm_server_alarm_packet",
+        'Port': 14367
+      }
+    }
+
+    client.put("/catalog/register",service_data)
+  end
+end

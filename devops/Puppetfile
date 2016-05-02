@@ -1,0 +1,193 @@
+#!/usr/bin/env ruby
+
+require 'hiera'
+
+#Find the root of the github repo so we can build portable absolute paths
+root_dir    = Dir.pwd
+vagrantfile = 
+while(
+  ! File.exist?(
+    File.expand_path('Vagrantfile', root_dir)
+  )
+) do
+  puts root_dir
+  root_dir.eql?("/") ? abort("Vagrantfile not found.") :
+  root_dir = File.dirname(root_dir)
+end
+
+##
+## Get the repo to check out from hiera for each project
+##
+hiera = Hiera.new(:config => root_dir + "/config/hiera.yaml")
+
+cur_dir=Dir.pwd
+Dir.chdir(root_dir)
+ss_api_revision        = hiera.lookup("ss_api::git_revision","master",'')
+ss_api_localpath       = hiera.lookup("ss_api::localpath",nil,'')
+ss_media_revision      = hiera.lookup("ss_media::git_revision","master",'')
+ss_media_localpath     = hiera.lookup("ss_media::localpath",nil,'')
+ss_backend_revision    = hiera.lookup("ss_backend::git_revision","master",'')
+ss_backend_localpath   = hiera.lookup("ss_backend::localpath",nil,'')
+ss_webapp_revision     = hiera.lookup("ss_webapp::git_revision","master",'')
+ss_webapp_localpath    = hiera.lookup("ss_webapp::localpath",nil,'')
+ss_drupal_revision     = hiera.lookup("ss_drupal::git_revision","master",'')
+ss_drupal_localpath    = hiera.lookup("ss_drupal::localpath",nil,'')
+ss_mockvideo_revision  = hiera.lookup("ss_mockvideo::git_revision","master",'')
+ss_mockvideo_localpath = hiera.lookup("ss_mockvideo::localpath",nil,'')
+ss_asterisk_revision  = hiera.lookup("ss_asterisk::git_revision","master",'')
+ss_asterisk_localpath = hiera.lookup("ss_asterisk::localpath",nil,'')
+ss_sarlacc_revision  = hiera.lookup("ss_sarlacc::git_revision","ss001",'')
+ss_sarlacc_localpath = hiera.lookup("ss_sarlacc::localpath",nil,'')
+Dir.chdir(cur_dir)
+
+
+# Check that the input is sane
+input_msg_error = ""
+error = 0
+if ( ss_api_revision.eql?("local") and ss_api_localpath.nil? ) then
+  input_msg_error += "ss_api::git_revision was set to local but no local path was defined.  set ss_api::localpath in ss_overrides.yaml.\n"
+  error = 1  
+end
+
+if ( ss_media_revision.eql?("local") and ss_media_localpath.nil? ) then
+  input_msg_error += "ss_media::git_revision was set to local but no local path was defined.  set ss_media::localpath in ss_overrides.yaml.\n"
+  error = 1  
+end
+
+if ( ss_backend_revision.eql?("local") and ss_backend_localpath.nil? ) then
+  input_msg_error += "ss_backend::git_revision was set to local but no local path was defined.  set ss_backend::localpath in ss_overrides.yaml.\n"
+  error = 1  
+end
+
+if ( ss_webapp_revision.eql?("local") and ss_webapp_localpath.nil? ) then
+  input_msg_error += "ss_webapp::git_revision was set to local but no local path was defined.  set ss_webapp::localpath in ss_overrides.yaml.\n"
+  error = 1
+end
+
+if ( ss_drupal_revision.eql?("local") and ss_drupal_localpath.nil? ) then
+  input_msg_error += "ss_drupal::git_revision was set to local but no local path was defined.  set ss_drupal::localpath in ss_overrides.yaml.\n"
+  error = 1
+end
+
+if ( ss_mockvideo_revision.eql?("local") and ss_mockvideo_localpath.nil? ) then
+  input_msg_error += "ss_mockvideo::git_revision was set to local but no local path was defined.  set ss_mockvideo::localpath in ss_overrides.yaml.\n"
+  error = 1
+end
+
+abort(input_msg_error) if error != 0
+
+forge "https://forgeapi.puppetlabs.com"
+
+#mod 'ss-cs-asterisk',
+#  :git => 'git@github.com:simplisafe/cs-asterisk.git',
+#  :ref => 'techops-12',
+#  :path => 'puppet/modules/simplisafe-ss_asterisk'
+
+if ss_api_revision.eql?("local") then
+  mod 'simplisafe-ss_api',
+    :path => File.expand_path("puppet/modules/simplisafe-ss_api", ss_api_localpath)
+else
+  mod 'simplisafe-ss_api',
+    :git => 'git@github.com:simplisafe/api.git',
+    :ref => ss_api_revision,
+    :path => 'puppet/modules/simplisafe-ss_api'
+end
+
+
+if ss_media_revision.eql?("local") then
+  mod 'simplisafe-ss_media',
+    :path => File.expand_path("puppet/modules/simplisafe-ss_media", ss_media_localpath)
+else
+  mod 'simplisafe-ss_media',
+    :git => 'git@github.com:simplisafe/media_backend.git',
+    :ref => ss_media_revision,
+    :path => 'puppet/modules/simplisafe-ss_media'
+end
+
+
+if ss_backend_revision.eql?("local") then
+  mod 'simplisafe-ss_backend',
+    :path => File.expand_path("puppet/modules/simplisafe-ss_backend", ss_backend_localpath)
+else
+  mod 'simplisafe-ss_backend',
+    :git => 'git@github.com:simplisafe/backend_api.git',
+    :ref => ss_backend_revision,
+    :path => 'puppet/modules/simplisafe-ss_backend'
+end
+
+
+if ss_drupal_revision.eql?("local") then
+  mod 'simplisafe-ss_drupal',
+    :path => File.expand_path("puppet/modules/simplisafe-ss_drupal", ss_drupal_localpath)
+else
+  mod 'simplisafe-ss_drupal',
+    :git => 'git@github.com:simplisafe/simplisafe.com.git',
+    :ref => ss_drupal_revision,
+    :path => 'puppet/modules/simplisafe-ss_drupal'
+end
+
+
+
+
+if ss_webapp_revision.eql?("local") then
+  mod 'simplisafe-ss_webapp',
+    :path => File.expand_path("puppet/modules/simplisafe-ss_webapp", ss_webapp_localpath)
+else
+  mod 'simplisafe-ss_webapp',
+    :git => 'git@github.com:simplisafe/web_app.git',
+    :ref => ss_webapp_revision,
+    :path => 'puppet/modules/simplisafe-ss_webapp'
+end
+
+if ss_asterisk_revision.eql?("local") then
+  mod 'simplisafe-ss_asterisk',
+    :path => File.expand_path("puppet/modules/simplisafe-ss_asterisk", ss_asterisk_localpath)
+else
+  mod 'simplisafe-ss_asterisk',
+    :git => 'git@github.com:simplisafe/cs-asterisk.git',
+    :ref => ss_asterisk_revision,
+    :path => 'puppet/modules/simplisafe-ss_asterisk'
+end
+
+if ss_sarlacc_revision.eql?("local") then
+  mod 'simplisafe-ss_sarlacc',
+    :path => File.expand_path("puppet/modules/simplisafe-ss_sarlacc", ss_sarlacc_localpath)
+else
+  mod 'simplisafe-ss_sarlacc',
+    :git => 'git@github.com:simplisafe/sarlacc.git',
+    :ref => ss_sarlacc_revision,
+    :path => 'puppet/modules/simplisafe-ss_sarlacc'
+end
+
+if ss_mockvideo_revision.eql?("local") then
+  mod 'simplisafe-ss_mockvideo',
+    :path => File.expand_path("puppet/modules/simplisafe-ss_mockvideo", ss_mockvideo_localpath)
+else
+  mod 'simplisafe-ss_mockvideo',
+    :git => 'git@github.com:simplisafe/mockvideo.git',
+    :ref => ss_mockvideo_revision,
+    :path => 'puppet/modules/simplisafe-ss_mockvideo'
+end
+
+mod 'simplisafe-ss_consul',
+  :path => root_dir + '/puppet/my_modules/simplisafe-ss_consul'
+
+mod 'simplisafe-ss_mongo',
+  :path => root_dir + '/puppet/my_modules/simplisafe-ss_mongo'
+
+mod 'simplisafe-ss_redis',
+  :path => root_dir + '/puppet/my_modules/simplisafe-ss_redis'
+
+mod 'simplisafe-ss_mysql',
+  :path => root_dir + '/puppet/my_modules/simplisafe-ss_mysql'
+
+mod 'simplisafe-ss_common',
+  :path => root_dir + '/puppet/my_modules/simplisafe-ss_common'
+
+mod 'solarkenedy-consul',
+  :git => 'git@github.com:solarkennedy/puppet-consul.git',
+  :ref => 'dd5ddf064ed0de452a60804de9e84adb7e6c525e'
+
+mod 'gdhbashton-consul_template',
+  :git => 'git@github.com:gdhbashton/puppet-consul_template.git',
+  :ref => 'd76c1f62d744ab1c9b12c8fc6f17a5576e1da49b'

@@ -1,0 +1,10 @@
+{
+  "15F768": {
+    "simStartDate": "2015-01-01T09:00:00-05:00",
+    "simEvents": [
+      {"cid": 3401, "zone": 0, "serial": "ABCDE", "sensorType": 1, "date": "2015-01-01T08:55:00-05:00"},
+      {"cid": 1400, "zone": 1, "serial": "ABCDE", "sensorType": 1, "date": "2015-01-01T09:00:15-05:00"},
+      {"cid": 3401, "zone": 0, "serial": "ABCDE", "sensorType": 1, "date": "2015-01-01T09:00:20-05:00"}
+    ]
+  }
+}

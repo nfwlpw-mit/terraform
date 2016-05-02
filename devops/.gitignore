@@ -1,0 +1,25 @@
+# Editor Temp Files
+*.swp
+
+*.log
+.bundle
+.DS_Store
+.vagrant
+config/ss_overrides.yaml
+config/ssh_keys/*
+config/mfa_certs/*
+config/ssl_certs/*
+config/ss_creds.yaml
+database/*
+Puppetfile.lock
+puppet/modules/*
+puppet/.tmp/*
+vendor/
+
+#Terraform files
+terraform.tfstate*
+credentials.tfvars
+
+!.gitkeep
+
+config/certs.tar

@@ -1,0 +1,384 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+
+##
+## Helper functions for checking required modules
+##
+
+def gem_available?(name)
+   Gem::Specification.find_by_name(name)
+rescue Gem::LoadError
+   false
+rescue
+   Gem.available?(name)
+end
+
+def pretty_fail(error_text)
+  puts "\n" + error_text + "\n\n\nVagrant run failed."
+  abort
+end
+
+def pretty_warn(error_text)
+  puts "\n" + error_text + "\n\n\nVagrant run failed."
+end
+
+def module_not_found_message(name)
+  pretty_fail(
+    "Could not load module: #{name}.\n" + 
+    "Please run: vagrant plugin install #{name}"
+  )
+end
+
+def optional_module_not_found_message(name)
+  pretty_warn(
+    "Could not load optional module: #{name}.\n" + 
+    "Please run: vagrant plugin install #{name}"
+  )
+end
+
+
+##
+## Check for required versions and modules
+##
+
+Vagrant.require_version ">= 1.7.4"
+
+begin
+  require 'hiera'
+  require 'english'
+rescue LoadError => e
+  module_not_found_message(e.message.split('--').last.strip)
+end
+
+#if ! gem_available? 'vagrant-aws'
+#  optional_module_not_found_message('vagrant-aws')
+#end
+
+##
+## Check for conflicting modules
+##
+
+if gem_available?('vagrant-librarian-puppet')
+  pretty_fail(
+    "This version of devops is no longer compatible with the vagrant-librarian-puppet plugin.\n" +
+    'Please run: vagrant plugin uninstall vagrant-librarian-puppet'
+  )
+end
+
+##
+## Begin Config
+##
+
+# Vagrantfile API/syntax version. Don't touch unless you know what you're doing!
+VAGRANTFILE_API_VERSION = '2'
+
+# Find the root of the github repo so we can build portable absolute paths
+root_dir = File.dirname(__FILE__)
+
+# Load Hiera
+Dir.chdir(root_dir)
+hiera        = Hiera.new(config: File.expand_path('config/hiera.yaml', root_dir))
+
+#
+# Get the repo to check out from hiera for each project
+#
+def check_revision_and_path(project_name, revision, path)
+  if revision.eql?('local') && path.nil? 
+    pretty_fail "revision for #{project_name} project was set to local but no local path was defined."
+  end
+end
+
+ss_api_revision        = hiera.lookup('ss_api::git_revision', 'master', '')
+ss_api_localpath       = hiera.lookup('ss_api::localpath', nil, '')
+ss_api_uid             = hiera.lookup('ss_api::uid', nil, '')
+check_revision_and_path('ss_api', ss_api_revision, ss_api_localpath)
+
+ss_asterisk_revision   = hiera.lookup('ss_asterisk::git_revision', 'master', '')
+ss_asterisk_localpath  = hiera.lookup('ss_asterisk::localpath', nil, '')
+ss_asterisk_uid        = hiera.lookup('ss_asterisk::uid', nil, '')
+check_revision_and_path('ss_asterisk', ss_asterisk_revision, ss_asterisk_localpath)
+
+ss_sarlacc_revision   = hiera.lookup('ss_sarlacc::git_revision', 'master', '')
+ss_sarlacc_localpath  = hiera.lookup('ss_sarlacc::localpath', nil, '')
+ss_sarlacc_uid        = hiera.lookup('ss_sarlacc::uid', nil, '')
+check_revision_and_path('ss_sarlacc', ss_sarlacc_revision, ss_sarlacc_localpath)
+
+ss_drupal_revision     = hiera.lookup('ss_drupal::git_revision', 'master', '')
+ss_drupal_localpath    = hiera.lookup('ss_drupal::localpath', nil, '')
+ss_drupal_uid          = hiera.lookup('ss_drupal::uid', nil, '')
+check_revision_and_path('ss_drupal', ss_drupal_revision, ss_drupal_localpath)
+
+ss_webapp_revision     = hiera.lookup('ss_webapp::git_revision', 'master', '')
+ss_webapp_localpath    = hiera.lookup('ss_webapp::localpath', nil, '')
+ss_webapp_uid          = hiera.lookup('ss_webapp::uid', nil, '')
+check_revision_and_path('ss_webapp', ss_webapp_revision, ss_webapp_localpath)
+
+ss_media_revision      = hiera.lookup('ss_media::git_revision', 'master', '')
+ss_media_localpath     = hiera.lookup('ss_media::localpath', nil, '')
+ss_media_uid           = hiera.lookup('ss_media::uid', nil, '')
+check_revision_and_path('ss_media', ss_media_revision, ss_media_localpath)
+
+$dev_initials          = hiera.lookup('ss_dev_initials', nil, '') 
+$consul_server         = hiera.lookup('ss_consul_server', nil, '') 
+dev_aws_keypair        = hiera.lookup('ss_aws_keypair', nil, '') 
+dev_aws_private_key    = hiera.lookup('ss_aws_private_key', '~/.ssh/id_rsa', '')
+
+ss_backend_revision      = hiera.lookup('ss_backend::git_revision', 'master', '')
+ss_backend_localpath     = hiera.lookup('ss_backend::localpath', nil, '')
+ss_backend_uid           = hiera.lookup('ss_backend::uid', nil, '')
+
+use_vagrant_cachier = hiera.lookup('vagrant_cachier', false, '') 
+# Check that the input is sane
+input_msg_error = ''
+error = 0
+if ss_api_revision.eql?('local')
+  if ss_api_localpath.nil?
+    input_msg_error += "ss_api::git_revision was set to local but no local path was defined.\n" \
+                    +  "Set ss_api::localpath in ss_overrides.yaml.\n"
+    error = 1
+  else
+    ss_api_localpath = File.expand_path(ss_api_localpath, root_dir)
+  end
+end
+
+if ss_backend_revision.eql?('local')
+  if ss_backend_localpath.nil?
+    input_msg_error += "ss_backend::git_revision was set to local but no local path was defined.\n" \
+                    +  "Set ss_backend::localpath in ss_overrides.yaml.\n"
+    error = 1
+  else
+    ss_backend_localpath = File.expand_path(ss_backend_localpath, root_dir)
+  end
+end
+
+abort(input_msg_error) if error != 0
+
+
+
+
+
+
+
+def build_box( config, name, ip )
+  config.vm.hostname = name
+
+  config.vm.provider :virtualbox do | virtualbox, override |
+    override.vm.network 'private_network', :adapter=>2, ip: "192.168.33.#{ip}"
+  end
+
+  # Force a different subnet in parallels so they do not conflict.
+  config.vm.provider :parallels do | parallels, override |
+    override.vm.network 'private_network', :adapter=>1, ip: "192.168.34.#{ip}"
+  end
+
+  config.vm.provision 'puppet', type: 'puppet' do |puppet|
+    puppet.facter = {
+      'ss_class'         => name,
+      'ss_consul_server' => $consul_server,
+      'ss_consul_count'  => 1
+    }
+  end
+
+  if name == "sarlacc";
+    config.vm.provision 'pre_puppet_setup', preserve_order: true, type: 'shell', inline: 'sudo apt-get update'
+  end
+
+  config.vm.provider :aws do | aws, override |
+    # vagrant-aws bug
+    # If the box is not installed, aws.ami is not defined anywhere and vagrant bombs out before the box can be downloaded.
+    aws.ami = ""
+
+    aws.iam_instance_profile_name = 'test'
+    aws.tags = {
+      'ss_role' => name, 
+      'Name'    => "#{$dev_initials}_#{name}"
+    }
+    
+    if name == "sarlacc";
+      override.ssh.username = "ubuntu"
+    end
+
+    if name == "mysql" or name == "sarlacc";
+      aws.instance_type = 't2.medium'
+    else
+      aws.instance_type = 't2.small'
+   end
+  end
+end
+
+def add_public_network(config)
+  config.vm.provider :virtualbox do | parallels, override |
+    override.vm.network 'public_network', :adapter=>3
+  end
+  config.vm.provider :parallels do | parallels, override |
+    override.vm.network 'public_network', :adapter=>2
+  end
+end
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+
+  config.vm.synced_folder ".", "/vagrant", type: "rsync", rsync__exclude: [ ".git/", "database", "puppet/.tmp/" ]
+
+  config.vm.box                                = 'simplisafe/centos-7.0'
+
+  config.vm.provision 'pre_puppet_setup', type: 'shell', inline: 'echo no pre-puppet setup to perform'
+
+  config.vm.provision 'puppet', type: 'puppet' do |puppet|
+    puppet.manifests_path    = 'puppet/manifests'
+    puppet.module_path       = 'puppet/modules'
+    puppet.manifest_file     = 'default.pp'
+    puppet.hiera_config_path = 'config/hiera.yaml'
+    puppet.working_directory = '/vagrant'
+    puppet.synced_folder_type = 'rsync'
+  end
+
+  config.vm.provider 'virtualbox' do | v |
+    v.cpus   = 2
+  end
+
+  config.vm.provider :aws do |aws, override|
+    # Dummy config value needed to pass Vagrantfile validation
+    
+    aws.keypair_name = dev_aws_keypair
+    aws.block_device_mapping = [{ 'DeviceName' => '/dev/sda1', 'Ebs.VolumeType' => 'gp2', 'Ebs.VolumeSize' => 50, 'Ebs.DeleteOnTermination' => 'true' }]
+
+    aws.security_groups = [ 'default', 'devenv' ]
+
+    override.ssh.username         = "centos"
+    override.ssh.private_key_path = dev_aws_private_key
+    override.nfs.functional = false
+
+    # Broken in the current version of vagrant-aws
+    #aws.elastic_ip = true
+  end
+
+  config.vm.provider 'parallels' do | p |
+    p.cpus          = 2
+    provider_subnet = '192.168.33'
+  end
+
+  mysql_disk_path = File.expand_path('.vagrant/sslive.vmdk', root_dir)
+
+  config.vm.define 'consul' do | consul |
+    build_box( consul, 'consul', 10 )
+  end
+
+  # Start by bringing up back end data services
+  config.vm.define 'mysql' do | mysql |
+    build_box( mysql, 'mysql', 128 )
+
+    mysql.vm.synced_folder "database", "/vagrant/database", type: "rsync"
+
+    mysql.vm.provider 'virtualbox' do | v |
+      v.memory = 4096
+    end
+
+    mysql.vm.provider 'parallels' do |p|
+      p.memory = 4096
+    end
+  end
+
+  config.vm.define 'redis' do |redis|
+    build_box( redis, "redis", 130 )
+  end
+
+  config.vm.define 'mongo' do |mongo|
+    build_box( mongo, "mongo", 129 )
+  end
+
+  # Next bring up API
+  config.vm.define 'api' do |api|
+    build_box( api, "api", 66 )
+
+    api.vm.network 'forwarded_port', guest: 14367, host: 14367, protocol: 'udp'
+    api.vm.network 'forwarded_port', guest: 3000, host: 3000, protocol: 'tcp'
+
+    api.vm.synced_folder(
+       ss_api_localpath,
+       '/mnt/ss_api',
+       owner: ss_api_uid,
+       rsync__exclude: [ ".git", "node_modules" ]
+    ) if ss_api_revision.eql?('local')
+  end
+
+  # Next bring up media backend
+  config.vm.define 'media' do |media|
+    build_box( media, "media", 68)
+
+    media.vm.network 'forwarded_port', guest: 3002, host: 3002, protocol: 'tcp'
+
+    media.vm.synced_folder(
+       ss_media_localpath,
+       '/mnt/ss_media',
+       owner: ss_media_uid,
+    ) if ss_media_revision.eql?('local')
+  end
+
+  # Next bring up backend api
+  config.vm.define 'backend' do |backend|
+    build_box( backend, 'backend', 69 )
+
+    backend.vm.network "forwarded_port", guest: 3009, host: 3009, protocol: 'tcp'
+    backend.vm.network "forwarded_port", guest: 3010, host: 3010, protocol: 'tcp'
+
+    backend.vm.synced_folder(
+       ss_backend_localpath,
+       '/mnt/ss_backend',
+       owner: ss_backend_uid,
+    ) if ss_backend_revision.eql?('local')
+  end
+
+  # Lastly, bring up customer facing endpoints & applications
+  config.vm.define 'webapp' do |webapp|
+    build_box( webapp, 'webapp', 65 )
+
+    webapp.vm.synced_folder(
+       ss_webapp_localpath,
+       '/mnt/ss_webapp',
+       owner: ss_webapp_uid,
+       type: "rsync",
+       rsync__exclude: [ "node_modules" ]
+    ) if ss_webapp_revision.eql?('local')
+  end
+
+  config.vm.define 'drupal' do |drupal|
+    build_box( drupal, 'drupal', 67 )
+    drupal.vm.box = 'simplisafe/centos-6.6'
+
+    drupal.vm.synced_folder(
+      ss_drupal_localpath,
+      '/mnt/ss_drupal',
+      'rsync__args' => [
+        '--verbose',
+        '--archive',
+        '--delete',
+        '--compress'
+      ] 
+    ) if ss_drupal_revision.eql?('local')
+  end
+  
+  config.vm.define 'asterisk', autostart: false do |asterisk|
+    build_box( asterisk, 'asterisk', 20 )
+    asterisk.vm.box = 'simplisafe/centos-6.6'
+    add_public_network(asterisk)
+    asterisk.vm.synced_folder(
+       ss_asterisk_localpath,
+       '/mnt/ss_asterisk',
+       owner: ss_asterisk_uid
+    ) if ss_asterisk_revision.eql?('local')
+  end
+
+  config.vm.define 'sarlacc', autostart: false do |sarlacc|
+    build_box( sarlacc, "sarlacc", 23 )
+    sarlacc.vm.box = 'simplisafe/ubuntu-14.04'
+    add_public_network(sarlacc)
+    sarlacc.vm.synced_folder(
+       ss_sarlacc_localpath,
+       '/mnt/ss_sarlacc',
+       owner: ss_sarlacc_uid
+    ) if ss_sarlacc_revision.eql?('local')
+  end
+
+
+end

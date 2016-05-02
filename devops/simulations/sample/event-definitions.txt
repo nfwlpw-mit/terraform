@@ -1,0 +1,127 @@
+/////////////////////////////////
+// CID and Zone ID Definitions //
+/////////////////////////////////
+case '1120':
+      type = 'alarm';
+      info = 'Alarm: Panic'
+      sensorType = 'panic';
+      if (event['zone'] == '1') info += ' (Keypad)';
+      else if (event['zone'] == '2') info += ' (Keychain Remote)';
+      else if (event['zone'] == '3') info += ' (Panic Button)';
+      break;
+
+case '3441':
+  type = 'activity';
+  info = 'System Armed (Home)';
+  break;
+
+case '3401':
+  type = 'activity';
+  info = 'System Armed (Away)';
+  break;
+
+case '1400':
+  type = 'activity';
+  info = 'System Disarmed';
+  if (event['zone'] == 0) info += ' by Keychain Remote';
+  else if (event['zone'] == 1) info += ' by Master PIN';
+  else if (event['zone'] == 2) info += ' by PIN 2';
+  else if (event['zone'] == 3) info += ' by PIN 3';
+  else if (event['zone'] == 4) info += ' by PIN 4';
+  else if (event['zone'] == 5) info += ' by PIN 5';
+  break;
+
+case '1406':
+  type = 'alarmCancel';
+  info = 'Alarm Canceled';
+  if (event['zone'] == 0) info += ' by Keychain Remote';
+  else if (event['zone'] == 1) info += ' by Master PIN';
+  else if (event['zone'] == 2) info += ' by PIN 2';
+  else if (event['zone'] == 3) info += ' by PIN 3';
+  else if (event['zone'] == 4) info += ' by PIN 4';
+  else if (event['zone'] == 5) info += ' by PIN 5';
+  else if (event['zone'] == 6 && !event['sensor']) info += ' by Online Command';
+  else info += ' by Keypad';
+  break;
+
+case '1110':
+  type = 'alarm';
+  info = 'Alarm: Smoke Detector';
+  sensorType = 'smoke';
+  break;
+
+case '3110':
+  type = 'alarmCancel';
+  info = 'Smoke Detector Alarm Stopped';
+  sensorType = 'smoke';
+  break;
+
+case '1154':
+  type = 'alarm';
+  info = 'Alarm: Water Sensor';
+  sensorType = 'water';
+  break;
+
+case '3154':
+  type = 'alarmCancel';
+  info = 'Water Sensor Alarm Stopped';
+  sensorType = 'water';
+  break;
+
+case '1159':
+  type = 'alarm';
+  info = 'Alarm: Freeze Sensor';
+  sensorType = 'freeze';
+  break;
+
+case '3159':
+  type = 'alarmCancel';
+  info = 'Freeze Sensor Alarm Stopped';
+  sensorType = 'freeze';
+  break;
+
+case '1162':
+  type = 'alarm';
+  info = 'Alarm: CO Detector';
+  sensorType = 'co';
+  break;
+
+case '3162':
+  type = 'alarmCancel';
+  info = 'CO Detector Alarm Stopped';
+  sensorType = 'co';
+  break;
+
+case '1132':
+  type = 'alarm';
+  if (event['sensor_type'] == 6) {
+    info = 'Alarm: Glassbreak Sensor';
+    sensorType = 'glass';
+  }
+  else {
+    info = 'Alarm: Motion Sensor';
+    sensorType = 'motion';
+  }
+  break;
+
+case '1134':
+  type = 'alarm';
+  info = 'Alarm: Entry Sensor';
+  sensorType = 'entry';
+  break;
+
+/////////////////////////////
+// Sensor Type Definitions //
+/////////////////////////////
+var sensorTypeMap = {
+  1  : "Keypad",
+  2  : "Keychain Remote",
+  3  : "Panic Button",
+  4  : "Motion Sensor",
+  5  : "Entry Sensor",
+  6  : "Glassbreak Sensor",
+  7  : "CO Detector",
+  8  : "Smoke Detector",
+  9  : "Water Sensor",
+  10 : "Freeze Sensor"
+};

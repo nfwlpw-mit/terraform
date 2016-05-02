@@ -1,0 +1,17 @@
+{
+  "name": "simplisafe-ss_mongo",
+  "version": "0.1.0",
+  "author": "simplisafe",
+  "summary": null,
+  "license": "Private",
+  "source": "",
+  "project_page": null,
+  "issues_url": null,
+  "dependencies": [
+    {"name":"simplisafe-ss_common"},
+    {"name":"puppetlabs-mongodb"},
+    {"name":"KyleAnderson-consul"},
+    {"name":"gdhbashton-consul_template"}
+  ]
+}
+
