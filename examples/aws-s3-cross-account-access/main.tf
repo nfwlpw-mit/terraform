@@ -37,6 +37,7 @@ resource "aws_s3_bucket_object" "prod" {
   source = "${path.module}/prod.txt"
 }
 
+/*
 provider "aws" {
   alias = "test"
 
@@ -52,3 +53,4 @@ resource "aws_s3_bucket_object" "test" {
   key = "object-uploaded-via-test-creds"
   source = "${path.module}/test.txt"
 }
+*/
